@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kimpalan AR — Uji Kad</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0F1113;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+  #container{width:100vw;height:100vh;position:relative;}
+
+  #start-screen{position:fixed;inset:0;background:#16181B;color:#ECEEF0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:24px;text-align:center;z-index:20;}
+  #start-screen h1{font-size:22px;margin:0 0 10px;}
+  #start-screen p{color:#8B939C;font-size:14px;max-width:320px;line-height:1.5;margin:0 0 24px;}
+  #start-btn{background:#FF6A1F;color:#1B1E22;border:none;padding:14px 28px;
+    border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;}
+
+  #hint{position:fixed;top:16px;left:50%;transform:translateX(-50%);
+    background:rgba(27,30,34,0.85);color:#ECEEF0;padding:10px 18px;border-radius:20px;
+    font-size:13px;z-index:15;transition:opacity .2s;}
+
+  #info-panel{position:fixed;left:0;right:0;bottom:0;background:#202327;color:#ECEEF0;
+    padding:20px 22px 26px;border-top:3px solid #FF6A1F;border-radius:16px 16px 0 0;
+    transform:translateY(110%);transition:transform .25s ease;z-index:15;}
+  #info-panel.show{transform:translateY(0);}
+  #info-panel .eyebrow{color:#FF6A1F;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:700;margin-bottom:4px;}
+  #info-panel h2{font-size:20px;margin:0 0 10px;}
+  #info-panel ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#C9CDD2;}
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <h1>Simulator AR Kimpalan</h1>
+  <p>Kad ujian: Kedudukan 1G. Tekan mula, benarkan akses kamera, kemudian halakan kamera ke kad.</p>
+  <button id="start-btn">Mulakan Kamera</button>
+</div>
+
+<div id="hint" style="display:none;">Halakan kamera ke kad "Kedudukan 1G"</div>
+
+<div id="info-panel">
+  <div class="eyebrow">Teknologi Kimpalan · SMAW</div>
+  <h2>Kedudukan 1G — Rata</h2>
+  <ul>
+    <li>Sudut elektrod: lebih kurang 10&ndash;15&deg; sudut tarikan (drag angle)</li>
+    <li>Kedudukan paling stabil untuk pemula &mdash; graviti membantu kolam kimpalan</li>
+    <li>Fokus: kekalkan lengkok stabil dan pergerakan sekata</li>
+  </ul>
+</div>
+
+<div id="container"></div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js";
+import { MindARThree } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
+
+const startScreen = document.getElementById('start-screen');
+const startBtn = document.getElementById('start-btn');
+const hint = document.getElementById('hint');
+const infoPanel = document.getElementById('info-panel');
+
+let mindarThree, renderer, scene, camera;
+
+async function initAR() {
+  mindarThree = new MindARThree({
+    container: document.querySelector("#container"),
+    // NOTE: targets.mind must sit next to this file — see build notes.
+    imageTargetSrc: "./targets.mind",
+    uiScanning: false,
+    uiLoading: false,
+  });
+  ({ renderer, scene, camera } = mindarThree);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(0.5, 1, 0.5);
+  scene.add(dir);
+
+  // target index 0 == card-1g-flat.png (the first / only image compiled into targets.mind)
+  const anchor = mindarThree.addAnchor(0);
+
+  const group = new THREE.Group();
+
+  // steel plate
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.05, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x4a4f55 })
+  );
+  plate.position.y = -0.02;
+  group.add(plate);
+
+  // weld bead (torus arc sitting on the plate)
+  const bead = new THREE.Mesh(
+    new THREE.TorusGeometry(0.42, 0.035, 10, 60, Math.PI),
+    new THREE.MeshStandardMaterial({ color: 0xff6a1f })
+  );
+  bead.rotation.x = Math.PI / 2;
+  bead.rotation.z = Math.PI / 2;
+  bead.position.y = 0.02;
+  group.add(bead);
+
+  // electrode rod at the correct ~12 degree travel angle
+  const rod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.5, 12),
+    new THREE.MeshStandardMaterial({ color: 0x2c2c2a })
+  );
+  rod.position.set(0, 0.25, 0);
+  rod.rotation.z = THREE.MathUtils.degToRad(12);
+  group.add(rod);
+
+  // arc glow at the tip
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.03, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xbfe8ff })
+  );
+  glow.position.set(0.05, 0.02, 0);
+  group.add(glow);
+
+  group.scale.set(1, 1, 1);
+  anchor.group.add(group);
+
+  anchor.onTargetFound = () => {
+    hint.style.display = "none";
+    infoPanel.classList.add("show");
+  };
+  anchor.onTargetLost = () => {
+    hint.style.display = "block";
+    infoPanel.classList.remove("show");
+  };
+
+  await mindarThree.start();
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
+  });
+
+  hint.style.display = "block";
+}
+
+startBtn.addEventListener('click', async () => {
+  startScreen.style.display = 'none';
+  try {
+    await initAR();
+  } catch (err) {
+    startScreen.style.display = 'flex';
+    startScreen.innerHTML = '<h1>Ralat kamera</h1><p>' + err.message + '</p>';
+  }
+});
+</script>
+
+</body>
+</html>

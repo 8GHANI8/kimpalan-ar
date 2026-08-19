@@ -14,8 +14,12 @@
   #container video{
     position:absolute!important;top:0!important;left:0!important;
     width:100%!important;height:100%!important;object-fit:cover!important;
-    z-index:0!important;opacity:1!important;visibility:visible!important;
+    z-index:0!important;visibility:visible!important;
     display:block!important;
+    /* NOT opacity:1 on purpose — some Android Chrome versions use a hardware
+       fast-path for video at exactly opacity 1 that renders black beneath a
+       transparent WebGL canvas. 0.9999 forces normal compositing instead. */
+    opacity:0.9999!important;
   }
   #container canvas{position:absolute!important;top:0!important;left:0!important;
     z-index:1!important;}

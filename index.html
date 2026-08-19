@@ -53,10 +53,25 @@
 
 <div id="container"></div>
 
+<script>
+  window.addEventListener('error', function (e) {
+    var s = document.getElementById('start-screen');
+    if (!s) return;
+    s.style.display = 'flex';
+    s.innerHTML = '<h1>Ralat</h1><p style="word-break:break-word">' +
+      (e.message || 'Ralat tidak diketahui') + '</p>';
+  });
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js";
-import { MindARThree } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
-
 const startScreen = document.getElementById('start-screen');
 const startBtn = document.getElementById('start-btn');
 const hint = document.getElementById('hint');
@@ -65,6 +80,12 @@ const infoPanel = document.getElementById('info-panel');
 let mindarThree, renderer, scene, camera;
 
 async function initAR() {
+  // loaded here (not as a static top-level import) so any failure —
+  // missing targets.mind, bad CDN path, blocked network — throws INTO
+  // the try/catch below instead of silently killing the whole script.
+  const THREE = await import("three");
+  const { MindARThree } = await import("mindar-image-three");
+
   mindarThree = new MindARThree({
     container: document.querySelector("#container"),
     // NOTE: targets.mind must sit next to this file — see build notes.
